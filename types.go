@@ -3,6 +3,8 @@ package protokit
 import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
 
 	"fmt"
 	"strings"
@@ -47,28 +49,28 @@ func (c *common) GetFullName() string { return c.FullName }
 func (c *common) IsProto3() bool { return c.file.GetSyntax() == "proto3" }
 
 func getOptions(options proto.Message) (m map[string]interface{}) {
-	for _, extension := range proto.RegisteredExtensions(options) {
-		if !proto.HasExtension(options, extension) {
-			continue
-		}
-		ext, err := proto.GetExtension(options, extension)
-		if err != nil {
-			continue
-		}
-		if m == nil {
-			m = make(map[string]interface{})
-		}
-		m[extension.Name] = ext
-	}
+	protoregistry.GlobalTypes.RangeExtensionsByMessage(proto.MessageReflect(options).Descriptor().FullName(),
+		func(extension protoreflect.ExtensionType) bool {
+
+			if m == nil {
+				m = make(map[string]interface{})
+			}
+			m[extension.TypeDescriptor().TextName()] = extension
+			return true
+		})
+
 	return m
 }
 
 func (c *common) setOptions(options proto.Message) {
 	if opts := getOptions(options); len(opts) > 0 {
 		if c.OptionExtensions == nil {
+
 			c.OptionExtensions = opts
+
 			return
 		}
+
 		for k, v := range opts {
 			c.OptionExtensions[k] = v
 		}

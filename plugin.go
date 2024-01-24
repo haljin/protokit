@@ -1,12 +1,13 @@
 package protokit
 
 import (
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/protoc-gen-go/plugin"
+	plugin_go "github.com/golang/protobuf/protoc-gen-go/plugin"
+	"github.com/pseudomuto/protokit/utils"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/descriptorpb"
 
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 )
 
@@ -36,7 +37,8 @@ func RunPluginWithIO(p Plugin, r io.Reader, w io.Writer) error {
 }
 
 func readRequest(r io.Reader) (*plugin_go.CodeGeneratorRequest, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := io.ReadAll(r)
+
 	if err != nil {
 		return nil, err
 	}
@@ -45,6 +47,12 @@ func readRequest(r io.Reader) (*plugin_go.CodeGeneratorRequest, error) {
 	if err = proto.Unmarshal(data, req); err != nil {
 		return nil, err
 	}
+
+	set := new(descriptorpb.FileDescriptorSet)
+	set.File = req.ProtoFile
+
+	fd := utils.RegisterExtensions(set)
+	req.ProtoFile = fd
 
 	if len(req.GetFileToGenerate()) == 0 {
 		return nil, fmt.Errorf("no files were supplied to the generator")
